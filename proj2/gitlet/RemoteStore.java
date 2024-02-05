@@ -28,7 +28,7 @@ public class RemoteStore {
     public void addRemote(String name, String URI) throws IOException {
         File remoteFile = join(REMOTE_DIR, name);
         if (remoteFile.exists()) {
-            exitWithMessage("A remote with that name already exists.");
+            throw new GitletException("A remote with that name already exists.");
         }
         remoteFile.createNewFile();
         writeContents(remoteFile, URI);
@@ -37,7 +37,7 @@ public class RemoteStore {
     public void removeRemote(String remoteName) {
         File remoteFile = join(REMOTE_DIR, remoteName);
         if (!remoteFile.exists()) {
-            exitWithMessage("A remote with that name does not exist.");
+            throw new GitletException("A remote with that name does not exist.");
         }
         remoteFile.delete();
     }

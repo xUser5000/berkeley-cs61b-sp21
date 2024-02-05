@@ -117,9 +117,12 @@ public class Main {
                 default:
                     exitWithMessage("No command with that name exists.");
             }
+        } catch (GitletException gitletException) {
+            System.out.println(gitletException.getMessage());
+            System.exit(0);
         } catch (Exception exception) {
             exception.printStackTrace();
-            System.exit(0);
+            System.exit(1);
         }
     }
 
@@ -131,5 +134,11 @@ public class Main {
 
     public static void incorrectOperands() {
         exitWithMessage("Incorrect operands.");
+    }
+
+
+    public static void exitWithMessage(String msg) {
+        System.out.println(msg);
+        System.exit(0);
     }
 }

@@ -73,7 +73,7 @@ public class Repository {
      */
     public void init() throws IOException {
         if (GITLET_DIR.exists()) {
-            exitWithMessage("A Gitlet version-control system already exists in the current directory.");
+            throw new GitletException("A Gitlet version-control system already exists in the current directory.");
         }
         GITLET_DIR.mkdir();
         COMMITS_DIR.mkdir();
@@ -106,7 +106,7 @@ public class Repository {
         checkInitializedGitletDirectory();
         File workingFile = workingArea.getFile(fileName);
         if (workingFile == null) {
-            exitWithMessage("File does not exist.");
+            throw new GitletException("File does not exist.");
         }
 
         String committedFileHash = getCurrentCommit().getTrackedFiles().get(fileName);
@@ -142,11 +142,11 @@ public class Repository {
 
     private void commit(String message, String secondaryParent) {
         if (message.isEmpty()) {
-            exitWithMessage("Please enter a commit message.");
+            throw new GitletException("Please enter a commit message.");
         }
 
         if (stagingArea.isEmpty()) {
-            exitWithMessage("No changes added to the commit.");
+            throw new GitletException("No changes added to the commit.");
         }
 
         /* Compute the SHA-1 hash of added/modified files and store them in the blobs directory */
@@ -187,7 +187,7 @@ public class Repository {
         File stagedForAdditionFile = stagingArea.getFileForAddition(filename);
         Map<String, String> trackedFiles = getCurrentCommit().getTrackedFiles();
         if (stagedForAdditionFile == null && !trackedFiles.containsKey(filename)) {
-            exitWithMessage("No reason to remove the file.");
+            throw new GitletException("No reason to remove the file.");
         }
         if (stagedForAdditionFile != null) {
             stagingArea.unstageForAddition(filename);
@@ -231,7 +231,7 @@ public class Repository {
         checkInitializedGitletDirectory();
         List<Commit> matchedCommits = commitStore.getCommitsByMessage(commitMessage);
         if (matchedCommits.isEmpty()) {
-            exitWithMessage("Found no commit with that message.");
+            throw new GitletException("Found no commit with that message.");
         }
         matchedCommits.stream()
                 .map(Commit::getHash)
@@ -293,12 +293,12 @@ public class Repository {
         checkInitializedGitletDirectory();
         Commit commit = commitStore.getCommitByHash(commitHash);
         if (commit == null) {
-            exitWithMessage("No commit with that id exists.");
+            throw new GitletException("No commit with that id exists.");
         }
 
         String blobHash = commit.getTrackedFiles().get(fileName);
         if (blobHash == null) {
-            exitWithMessage("File does not exist in that commit.");
+            throw new GitletException("File does not exist in that commit.");
         }
 
         File blob = blobStore.get(blobHash);
@@ -326,7 +326,7 @@ public class Repository {
                 .filter(fileName -> !getCurrentCommit().getTrackedFiles().containsKey(fileName))
                 .anyMatch(fileName -> targetCommit.getTrackedFiles().containsKey(fileName))
         ) {
-            exitWithMessage("There is an untracked file in the way; delete it, or add and commit it first.");
+            throw new GitletException("There is an untracked file in the way; delete it, or add and commit it first.");
         }
 
         workingArea.clear();
@@ -348,12 +348,12 @@ public class Repository {
         checkInitializedGitletDirectory();
         Branch currentBranch = getCurrentBranch();
         if (targetBranchName.equals(currentBranch.getName())) {
-            exitWithMessage("No need to checkout the current branch.");
+            throw new GitletException("No need to checkout the current branch.");
         }
 
         Branch targetBranch = branchStore.getBranch(targetBranchName);
         if (targetBranch == null) {
-            exitWithMessage("No such branch exists.");
+            throw new GitletException("No such branch exists.");
         }
 
         Commit targetCommit = commitStore.getCommitByHash(targetBranch.getCommitHash());
@@ -370,7 +370,7 @@ public class Repository {
     public void branch(String branchName) {
         checkInitializedGitletDirectory();
         if (branchStore.getBranch(branchName) != null) {
-            exitWithMessage("A branch with that name already exists");
+            throw new GitletException("A branch with that name already exists");
         }
         Branch branch = new Branch(branchName, getCurrentBranch().getCommitHash());
         branchStore.saveBranch(branch);
@@ -384,11 +384,11 @@ public class Repository {
     public void rmBranch(String branchName) {
         checkInitializedGitletDirectory();
         if (getCurrentBranch().getName().equals(branchName)) {
-            exitWithMessage("Cannot remove the current branch.");
+            throw new GitletException("Cannot remove the current branch.");
         }
         Branch branch = branchStore.getBranch(branchName);
         if (branch == null) {
-            exitWithMessage("A branch with that name does not exist.");
+            throw new GitletException("A branch with that name does not exist.");
         }
         branchStore.removeBranch(branch);
     }
@@ -407,7 +407,7 @@ public class Repository {
         checkInitializedGitletDirectory();
         Commit targetCommit = commitStore.getCommitByHash(commitHash);
         if (targetCommit == null) {
-            exitWithMessage("No commit with that id exists.");
+            throw new GitletException("No commit with that id exists.");
         }
         checkoutCommit(targetCommit);
 
@@ -458,23 +458,23 @@ public class Repository {
     public void merge(String branchName) {
         checkInitializedGitletDirectory();
         if (!stagingArea.isEmpty()) {
-            exitWithMessage("You have uncommitted changes.");
+            throw new GitletException("You have uncommitted changes.");
         }
 
         Branch targetBranch = branchStore.getBranch(branchName);
         if (targetBranch == null) {
-            exitWithMessage("A branch with that name does not exist.");
+            throw new GitletException("A branch with that name does not exist.");
         }
 
         Branch currentBranch = getCurrentBranch();
         if (targetBranch.getName().equals(currentBranch.getName())) {
-            exitWithMessage("Cannot merge a branch with itself.");
+            throw new GitletException("Cannot merge a branch with itself.");
         }
 
         if (workingArea.allFiles().stream()
                 .anyMatch(file -> !getCurrentCommit().getTrackedFiles().containsKey(file.getName()))
         ) {
-            exitWithMessage("There is an untracked file in the way; delete it, or add and commit it first.");
+            throw new GitletException("There is an untracked file in the way; delete it, or add and commit it first.");
         }
 
         final Commit HEAD_COMMIT = commitStore.getCommitByHash(currentBranch.getCommitHash());
@@ -482,12 +482,12 @@ public class Repository {
         final Commit SPLIT_COMMIT = splitPoint(currentBranch, targetBranch);
 
         if (SPLIT_COMMIT.equals(OTHER_COMMIT)) {
-            exitWithMessage("Given branch is an ancestor of the current branch.");
+            throw new GitletException("Given branch is an ancestor of the current branch.");
         }
 
         if (SPLIT_COMMIT.equals(HEAD_COMMIT)) {
             checkoutBranch(targetBranch.getName());
-            exitWithMessage("Current branch fast-forwarded.");
+            throw new GitletException("Current branch fast-forwarded.");
         }
 
         Set<String> filePool = new HashSet<>();
@@ -634,7 +634,7 @@ public class Repository {
 
     private void checkInitializedGitletDirectory() {
         if (!GITLET_DIR.exists()) {
-            exitWithMessage("Not in an initialized Gitlet directory.");
+            throw new GitletException("Not in an initialized Gitlet directory.");
         }
     }
 }
